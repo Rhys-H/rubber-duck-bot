@@ -1,0 +1,48 @@
+service: rubber-duck-bot
+
+useDotenv: true
+
+plugins:
+  - serverless-iam-roles-per-function
+  - serverless-python-requirements
+custom:
+  pythonRequirements:
+    dockerizePip: non-linux
+    slim: true
+    layer: true
+
+package:
+  individually: true
+  patterns:
+    - '!node_modules/**'
+    - '!venv/**'
+    - '!README.md'
+    - '!*.vscode'
+    - '!**/tests/**'
+
+provider:
+  name: aws
+  runtime: python3.8
+  region: eu-west-1
+  stage: dev
+  lambdaHashingVersion: 20201221
+
+functions:
+  app:
+    handler: app.app
+    package:
+      patterns:
+        - 'app.py'
+        - 'rubber_duck.py'
+    events:
+      - http: POST /slack/events
+    layers:
+      - Ref: PythonRequirementsLambdaLayer
+    iamRoleStatementsInherit: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - secretsmanager:GetSecretValue
+        Resource:
+          - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:RUBBER_DUCK_SLACK_BOT_TOKEN-*
+          - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:RUBBER_DUCK_SLACK_SIGNING_SECRET-*
